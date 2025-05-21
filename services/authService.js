@@ -1,4 +1,8 @@
 import prisma from "../database/connection.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET;
 export const loginUser = async (email, password) => {
   // Simulate a database call to check if the user exists
   const user = await prisma.user.findUnique({
@@ -14,18 +18,21 @@ export const loginUser = async (email, password) => {
   }
 
   // Check if the password is correct
-  const isPasswordCorrect = await verifyPassword(password, user.password);
+  const isPasswordCorrect = await bcrypt.compare(password, user.password);
   if (!isPasswordCorrect) {
     return { status: 401, message: "Invalid password" };
   }
 
-  // If everything is correct, return success message
-  return { status: 200, message: "Login successful" };
-};
-const verifyPassword = async (inputPassword, storedPassword) => {
-  return inputPassword === storedPassword; // Simulated password verification
-};
+  const token = jwt.sign(
+    { userId: user.id, username: user.username },
+    JWT_SECRET,
+    {
+      expiresIn: "1h",
+    }
+  );
 
+  return { status: 200, message: token };
+};
 export const registerUser = async (name, email, password) => {
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -38,7 +45,10 @@ export const registerUser = async (name, email, password) => {
       message: "User already exists",
     };
   }
-  const user = await prisma.user.create({ data: { name, email, password } });
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: { name, email, password: hashedPassword },
+  });
   if (!user) {
     return {
       status: 500,

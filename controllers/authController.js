@@ -4,9 +4,13 @@ export const login = async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ message: "Email and password are required" });
   }
-  const result = await loginUser(email, password);
-  return res.status(result.status).json({
-    message: result.message,
+  const token = await loginUser(email, password);
+  if (token.status !== 200) {
+    return res.status(token.status).json({ message: token.message });
+  }
+
+  return res.status(token.status).json({
+    token,
   });
 };
 
